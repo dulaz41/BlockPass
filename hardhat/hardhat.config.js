@@ -80,6 +80,7 @@ module.exports = {
 
     etherscan: {
         apiKey: {
+            avalancheFuji: AVALANCESCAN_API_KEY,
             polygonMumbai: POLYGONSCAN_API_KEY,
             sepolia: ETHERSCAN_API_KEY,
         },
