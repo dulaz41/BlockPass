@@ -13,7 +13,7 @@ import "./PriceConverter.sol";
 
 /**
  * @title BlockPass
- * @dev The main smart contract for creating and managing blockpasses.
+ * @dev The main smart contract for creating and managing blockpasses Tickets.
  */
 contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     using Counters for Counters.Counter;
