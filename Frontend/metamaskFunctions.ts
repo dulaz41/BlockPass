@@ -15,11 +15,11 @@ function FIND_NETWORK(chain: number | string) {
 }
 
 const switchWeb3Network = async (network: string) => {
-    const { ethereum, avalanche }: any = window;
-    const accounts = await ethereum.request({ method: 'eth_accounts' });
+    const { avalanche }: any = window;
+    const accounts = await avalanche.request({ method: 'eth_accounts' });
 
     try {
-        await ethereum.request({
+        await avalanche.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: `0x${Number(network).toString(16)}` }],
         });
@@ -29,7 +29,7 @@ const switchWeb3Network = async (network: string) => {
                 return entry.chainId === `0x${Number(network).toString(16)}`
             })
             try {
-                await ethereum.request({
+                await avalanche.request({
                     method: 'wallet_addEthereumChain',
                     params: [
                         {
@@ -58,19 +58,19 @@ const switchWeb3Network = async (network: string) => {
 }
 
 const checkConnection = async (setClient: any) => {
+    try {
+    const { avalanche }: any = window;
 
-    const { ethereum, avalanche }: any = window;
-
-    if (ethereum.isAvalanche) {
-        const accounts = await ethereum.request({ method: 'eth_accounts' });
-        let chainId = parseInt(ethereum.chainId)
+    if (avalanche || avalanche.isAvalanche) {
+        const accounts = await avalanche.request({ method: 'eth_accounts' });
+        let chainId = parseInt(avalanche.chainId)
         const current_network: any = FIND_NETWORK(chainId)
 
         if (accounts.length > 0) {
             return setClient({
                 isConnected: true,
                 address: accounts[0],
-                network: parseInt(ethereum.chainId),
+                network: parseInt(avalanche.chainId),
                 ...current_network
             });
         }
@@ -78,18 +78,24 @@ const checkConnection = async (setClient: any) => {
     } else {
         return toast.error('Install Core Wallet to use this app');
     }
+} catch (error: any) {
+    toast.error('Install Core Wallet to use this app', {
+            position: 'top-right',
+        });
+}
+
 };
 
 const connectWeb3 = async () => {
 
     try {
-        const { ethereum, avalanche }: any = window;
+        const { avalanche }: any = window;
 
-        if (!ethereum.isAvalanche) {
+        if (!avalanche || !avalanche.isAvalanche) {
             toast.error('Please install Core Wallet');
             return;
         }
-        const provider = new ethers.providers.Web3Provider(ethereum);
+        const provider = new ethers.providers.Web3Provider(avalanche);
         const accounts = await provider.send('eth_requestAccounts', []);
         let network_details = await provider.getNetwork();
 
@@ -108,8 +114,8 @@ const connectWeb3 = async () => {
 };
 
 // const getSignedMaticContract = () => {
-//     const { ethereum }: any = window;
-//     const provider = new ethers.providers.Web3Provider(ethereum);
+//     const { avalanche }: any = window;
+//     const provider = new ethers.providers.Web3Provider(avalanche);
 //     const signer = provider.getSigner();
 //     // @ts-ignore
 //     let ca = NETWORKS.polygon_mumbai.ca;
@@ -126,8 +132,8 @@ const getSignedContract = (chainId: any) => {
     // })
 
     const current_network: any = FIND_NETWORK(chainId)
-    const { ethereum }: any = window;
-    const provider = new ethers.providers.Web3Provider(ethereum);
+    const { avalanche }: any = window;
+    const provider = new ethers.providers.Web3Provider(avalanche);
     const signer = provider.getSigner();
 
     // @ts-ignore

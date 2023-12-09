@@ -12,7 +12,7 @@ import { FIND_NETWORK } from '../metamaskFunctions';
 const AppContext: any = createContext({
   events: null,
   GetAllMaticEvents: null,
-  GetAllFilecoinEvents: null,
+  GetAllFujiEvents: null,
 });
 export const useApp = () => {
   return useContext(AppContext);
@@ -23,23 +23,18 @@ export default function AppContextProvider({ children }: { children: any }) {
   const [events, setEvents] = useState<any[]>([]);
 
   const GetAllEvents = useCallback(async () => {
-    let filecoinEvents: any[] = await GetAllChainEvents(NETWORKS.fil_testnet);
+    let fujiEvents: any[] = await GetAllChainEvents(NETWORKS.fuji_testnet);
     let mumbaiEvents: any[] = await GetAllChainEvents(NETWORKS.polygon_mumbai);
-    let fantomEvents: any[] = await GetAllChainEvents(NETWORKS.ftm_testnet);
 
     let newArr: any[] = [];
-    if (filecoinEvents) {
-      newArr = [...filecoinEvents];
+    if (fujiEvents) {
+      newArr = [...fujiEvents];
     }
     if (mumbaiEvents) {
       newArr = newArr.concat(mumbaiEvents);
     }
-    if (fantomEvents) {
-      newArr = newArr.concat(fantomEvents);
-    }
 
-    console.log(filecoinEvents, 'filecoin');
-    console.log(fantomEvents, 'fantomcoin');
+    console.log(fujiEvents, 'Fuji');
     console.log(mumbaiEvents, 'mumbai');
 
     return setEvents(newArr);
