@@ -15,7 +15,7 @@ function FIND_NETWORK(chain: number | string) {
 }
 
 const switchWeb3Network = async (network: string) => {
-    const { ethereum }: any = window;
+    const { ethereum, avalanche }: any = window;
     const accounts = await ethereum.request({ method: 'eth_accounts' });
 
     try {
@@ -59,9 +59,9 @@ const switchWeb3Network = async (network: string) => {
 
 const checkConnection = async (setClient: any) => {
 
-    const { ethereum }: any = window;
+    const { ethereum, avalanche }: any = window;
 
-    if (ethereum) {
+    if (ethereum.isAvalanche) {
         const accounts = await ethereum.request({ method: 'eth_accounts' });
         let chainId = parseInt(ethereum.chainId)
         const current_network: any = FIND_NETWORK(chainId)
@@ -76,17 +76,17 @@ const checkConnection = async (setClient: any) => {
         }
         return false;
     } else {
-        return toast.error('Install metamask to use this app');
+        return toast.error('Install Core Wallet to use this app');
     }
 };
 
 const connectWeb3 = async () => {
 
     try {
-        const { ethereum }: any = window;
+        const { ethereum, avalanche }: any = window;
 
-        if (!ethereum) {
-            toast.error('Please install metamask');
+        if (!ethereum.isAvalanche) {
+            toast.error('Please install Core Wallet');
             return;
         }
         const provider = new ethers.providers.Web3Provider(ethereum);
