@@ -1,6 +1,6 @@
 # BlockPass Smart Contract
 
-Welcome to the BlockPass smart contract repository! BlockPass is a decentralized platform on the Polygon blockchain for creating and managing block passes, implemented as non-fungible tokens (NFTs) following the ERC721 standard.
+Welcome to the BlockPass smart contract repository! BlockPass is a decentralized platform on the Avalanche blockchain for creating and managing block passes tickets, implemented as non-fungible tokens (NFTs) following the ERC721 standard.
 
 ## Features
 
@@ -15,7 +15,7 @@ Welcome to the BlockPass smart contract repository! BlockPass is a decentralized
 
 ## Deployed Contract Address
 
-Find below the address of the deployed BlockPass smart contract on the Polygon network:
+Find below the address of the deployed BlockPass smart contract on the Avalanche network:
 
 - [BP Contract](https://etherscan.io/address/0xabcde12345)
 
@@ -25,7 +25,7 @@ To deploy the BlockPass smart contract, follow these steps:
 
 1. Compile the BlockPass.sol file using a Solidity compiler like Remix or Hardhat.
 
-2. Deploy the contract to the Polygon network of your choice, ensuring that the constructor is executed during deployment.
+2. Deploy the contract to the Avalanche network of your choice, ensuring that the constructor is executed during deployment.
 
 3. After successful deployment, make a note of the contract address provided by the deployment tool.
 

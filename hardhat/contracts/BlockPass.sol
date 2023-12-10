@@ -13,13 +13,14 @@ import "./PriceConverter.sol";
 
 /**
  * @title BlockPass
- * @dev The main smart contract for creating and managing blockpasses Tickets.
+ * @dev The main smart contract for creating and managing block passes.
  */
 contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
+    using PriceConverter for uint256;
     using Counters for Counters.Counter;
     Counters.Counter private tokenId;
 
-    // Struct to store details of each blockpass
+    // Struct to store details of each block pass
     struct BlockPassDetails {
         address organizer;
         string metadata;
@@ -47,13 +48,14 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     // Arrays
     uint256[] public requestIds;
     uint256 public lastRequestId;
+    AggregatorV3Interface public s_priceFeed;
     BlockPassDetails[] public blockPassList;
 
     mapping(uint256 => RequestStatus) public requestStatuses;
     mapping(uint256 => BlockPassDetails) public getPassById;
     mapping(address => BlockPassDetails[]) public bookedPassByUser;
     mapping(address => uint256[]) public userNftTokens;
-    mapping(address => BlockPassDetails[]) public blockPassCreatedByOrganizer;
+    mapping(address => BlockPassDetails[]) public bpCreatedByOrganizer;
 
     // Events
     event blockPassCreated(
@@ -74,28 +76,28 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
 
     // Constructor initializes the contract
     constructor(
-        address initialOwner,
         address _linkAddress,
-        address _wrapperAddress
+        address _wrapperAddress,
+        address priceFeedAddress
     )
-        Ownable(initialOwner)
-        ERC721("blockpass", "BP")
+        ERC721("Block Pass", "BP")
         VRFV2WrapperConsumerBase(_linkAddress, _wrapperAddress)
     {
         tokenId.increment();
+        s_priceFeed = AggregatorV3Interface(priceFeedAddress);
     }
 
     /**
-     * @dev Allows a user to purchase a blockpass.
-     * @param _blockPassId The ID of the blockpass to be purchased.
+     * @dev Allows a user to purchase a block pass.
+     * @param _blockPassId The ID of the block pass to be purchased.
      */
     function purchasePass(uint256 _blockPassId) public payable {
         BlockPassDetails storage _pass = getPassById[_blockPassId];
-        require(msg.value >= _pass.passPrice);
+        require(msg.value.getPriceConverter(s_priceFeed) >= _pass.passPrice);
         require(block.timestamp <= _pass.salesEndTime, "Sales ended");
         require(_pass.passesSold < _pass.max_passes, "Sold out");
 
-        // Mint a new NFT representing the purchased blockpass
+        // Mint a new NFT representing the purchased block pass
         string memory tokenURI = string(abi.encodePacked(_pass.metadata));
         _safeMint(msg.sender, tokenId.current());
         _setTokenURI(tokenId.current(), tokenURI);
@@ -108,25 +110,25 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         }("");
         require(success);
 
-        // Update blockpass details and user records
+        // Update block pass details and user records
         _pass.passesSold++;
         bookedPassByUser[msg.sender].push(_pass);
         userNftTokens[msg.sender].push(tokenId.current());
 
-        // Emit event for the booked blockpass
+        // Emit event for the booked block pass
         emit passBooked(msg.sender, tokenId.current(), _pass.blockPassId);
         tokenId.increment();
     }
 
     /**
      * @dev Allows a user to purchase a Limited Edition blockpass ticket.
-     * @param _blockPassId The ID of the blockpass to be purchased.
+     * @param _blockPassId The ID of the block pass to be purchased.
      */
     function purchaseLimitedEditionPass(uint256 _blockPassId) public payable {
         uint256 requestId = requestRandomEventId();
         BlockPassDetails storage _pass = getPassById[_blockPassId];
 
-        require(msg.value >= _pass.passPrice);
+        require(msg.value.getPriceConverter(s_priceFeed) >= _pass.passPrice);
         require(block.timestamp <= _pass.salesEndTime, "Sales ended");
         require(_pass.passesSold < _pass.max_passes, "Sold out");
         require(
@@ -174,7 +176,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
      * @param _max_pass_count The maximum number of passes available for the new blockpass ticket.
      * @param _startTime The start time of the blockpass.
      * @param _salesEndTime The end time of sales for the blockpass.
-     * @param _passPrice The price for each blockpass.
+     * @param _passPrice The price for each block pass.
      * @param _metadata Additional metadata for the blockpass.
      * @param _category The category of the blockpass.
      */
@@ -186,7 +188,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         string memory _metadata,
         string memory _category
     ) external {
-        // Create a new blockpass with the provided details
+        // Create a new block pass with the provided details
         BlockPassDetails memory _pass = BlockPassDetails({
             organizer: msg.sender,
             blockPassId: blockPass_count,
@@ -200,12 +202,12 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
             bpEnded: false
         });
 
-        // Update mappings and arrays with the new blockpass
+        // Update mappings and arrays with the new block pass
         getPassById[blockPass_count] = _pass;
         blockPassList.push(_pass);
-        blockPassCreatedByOrganizer[msg.sender].push(_pass);
+        bpCreatedByOrganizer[msg.sender].push(_pass);
 
-        // Increment blockpass count and emit event for the creation of a new blockpass
+        // Increment block pass count and emit event for the creation of a new block pass
         blockPass_count++;
         emit blockPassCreated(
             _pass.organizer,
@@ -215,17 +217,17 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Allows an organizer to update the timing of a blockpass.
-     * @param _blockPassId The ID of the blockpass to be updated.
-     * @param _newStartTime The new start time for the blockpass.
-     * @param _newSalesEndTime The new end time for sales of the blockpass.
+     * @dev Allows an organizer to update the timing of a block pass.
+     * @param _blockPassId The ID of the block pass to be updated.
+     * @param _newStartTime The new start time for the block pass.
+     * @param _newSalesEndTime The new end time for sales of the block pass.
      */
     function updatePassTiming(
         uint256 _blockPassId,
         uint256 _newStartTime,
         uint256 _newSalesEndTime
     ) external {
-        // Update the timing of the specified blockpass
+        // Update the timing of the specified block pass
         BlockPassDetails storage _pass = getPassById[_blockPassId];
         _pass.startTime = block.timestamp + _newStartTime;
         _pass.salesEndTime = block.timestamp + _newSalesEndTime;
@@ -295,9 +297,9 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Retrieves the blockpasses booked by a specific user.
+     * @dev Retrieves the block passes booked by a specific user.
      * @param _user The address of the user.
-     * @return An array of blockpasses booked by the user.
+     * @return An array of block passes booked by the user.
      */
     function blockPassesBookedByUser(
         address _user
@@ -306,19 +308,19 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Retrieves the blockpasses created by a specific organizer.
+     * @dev Retrieves the block passes created by a specific organizer.
      * @param _organizer The address of the organizer.
-     * @return An array of blockpasses created by the organizer.
+     * @return An array of block passes created by the organizer.
      */
     function organizerBlockPasses(
         address _organizer
     ) public view returns (BlockPassDetails[] memory) {
-        return blockPassCreatedByOrganizer[_organizer];
+        return bpCreatedByOrganizer[_organizer];
     }
 
     /**
      * @dev Retrieves the total number of blockpasses in the contract.
-     * @return The total number of blockpasses.
+     * @return The total number of block passes.
      */
     function totalNumberOfBlockPassList() public view returns (uint256) {
         return blockPassList.length;
@@ -326,7 +328,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
 
     /**
      * @dev Retrieves an array of all blockpasses in the contract.
-     * @return An array of blockpasses.
+     * @return An array of block passes.
      */
     function allBlockPassList()
         public
@@ -337,9 +339,9 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Retrieves the number of passes sold for a specific blockpass.
-     * @param _blockPassId The ID of the blockpass.
-     * @return The number of passes sold for the blockpass.
+     * @dev Retrieves the number of passes sold for a specific block pass.
+     * @param _blockPassId The ID of the block pass.
+     * @return The number of passes sold for the block pass.
      */
     function passesSoldForBlockPass(
         uint256 _blockPassId
@@ -348,18 +350,18 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Checks if a specific blockpass has ended.
-     * @param _blockPassId The ID of the blockpass.
-     * @return A boolean indicating whether the blockpass has ended.
+     * @dev Checks if a specific block pass has ended.
+     * @param _blockPassId The ID of the block pass.
+     * @return A boolean indicating whether the block pass has ended.
      */
     function isBlockPassOver(uint256 _blockPassId) public view returns (bool) {
         return getPassById[_blockPassId].bpEnded;
     }
 
     /**
-     * @dev Retrieves an array of blockpasses belonging to a specific category.
-     * @param _category The category of blockpasses to retrieve.
-     * @return An array of blockpasses in the specified category.
+     * @dev Retrieves an array of block passes belonging to a specific category.
+     * @param _category The category of block passes to retrieve.
+     * @return An array of block passes in the specified category.
      */
     function getByCategory(
         string memory _category
@@ -370,7 +372,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
             blockPassList.length
         );
 
-        // Iterate through all blockpasses and filter by category
+        // Iterate through all block passes and filter by category
         for (; i < blockPassList.length; i++) {
             BlockPassDetails memory currentBlockPass = blockPassList[i];
 
@@ -387,8 +389,8 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Allows an organizer to remove a blockpass they created.
-     * @param _blockPassId The ID of the blockpass to be removed.
+     * @dev Allows an organizer to remove a block pass they created.
+     * @param _blockPassId The ID of the block pass to be removed.
      */
     function removeBlockPass(uint256 _blockPassId) external {
         uint256 i = 0;
@@ -397,25 +399,25 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         require(_pass.organizer == msg.sender, "Not Authorized");
         require(_pass.passesSold == 0, "Passes already bought");
 
-        // Remove from blockPassCreatedByOrganizer array
-        for (; i < blockPassCreatedByOrganizer[msg.sender].length - 1; i++) {
-            BlockPassDetails memory _aPass = blockPassCreatedByOrganizer[
-                msg.sender
-            ][i];
+        // Remove from bpCreatedByOrganizer array
+        for (; i < bpCreatedByOrganizer[msg.sender].length - 1; i++) {
+            BlockPassDetails memory _aPass = bpCreatedByOrganizer[msg.sender][
+                i
+            ];
             if (_aPass.blockPassId == _blockPassId) {
                 break;
             }
         }
         for (
             uint256 index = i;
-            index < blockPassCreatedByOrganizer[msg.sender].length - 1;
+            index < bpCreatedByOrganizer[msg.sender].length - 1;
             index++
         ) {
-            blockPassCreatedByOrganizer[msg.sender][
-                index
-            ] = blockPassCreatedByOrganizer[msg.sender][index + 1];
+            bpCreatedByOrganizer[msg.sender][index] = bpCreatedByOrganizer[
+                msg.sender
+            ][index + 1];
         }
-        blockPassCreatedByOrganizer[msg.sender].pop();
+        bpCreatedByOrganizer[msg.sender].pop();
 
         // Remove from general blockPassList array
         for (; envIndex < blockPassList.length - 1; envIndex++) {
@@ -439,8 +441,8 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Allows the contract owner to remove a blockpass.
-     * @param _blockPassId The ID of the blockpass to be removed.
+     * @dev Allows the contract owner to remove a block pass.
+     * @param _blockPassId The ID of the block pass to be removed.
      */
     function removeBlockPassAdmin(uint256 _blockPassId) external onlyOwner {
         uint256 envIndex = 0;
