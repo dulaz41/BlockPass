@@ -1,9 +1,9 @@
-import axios from 'axios';
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import CreateEventForm from '../components/CreateEvent/CreateEventForm';
-import { useWeb3 } from '../context/Web3Context';
-import { getSignedContract } from '../metamaskFunctions';
+import axios from "axios";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import CreateEventForm from "../components/CreateEvent/CreateEventForm";
+import { useWeb3 } from "../context/Web3Context";
+import { getSignedContract } from "../metamaskFunctions";
 
 function Create() {
   const [metaHash, setMetaHash] = useState(false);
@@ -13,7 +13,7 @@ function Create() {
     try {
       let ctx = getSignedContract(client.network);
 
-      let res = await ctx?.createEvent(
+      let res = await ctx?.createNewPass(
         data.seats,
         data.startdate,
         data.enddate,
@@ -21,12 +21,12 @@ function Create() {
         hash,
         data.category
       );
-      toast.success('Event submitted to blockchain, transaction in progress');
-      return 'Done';
+      toast.success("Event submitted to blockchain, transaction in progress");
+      return "Done";
     } catch (error) {
       console.log(error);
 
-      toast.error('error while adding to blockchain');
+      toast.error("error while adding to blockchain");
       return false;
     }
   };
@@ -43,19 +43,19 @@ function Create() {
         description: metadata.desc,
         name: metadata.title,
         attributes: [
-          { trait_type: 'Event Category', value: metadata.category },
+          { trait_type: "Event Category", value: metadata.category },
         ],
       },
     });
     try {
       const resFile = await axios({
-        method: 'post',
-        url: 'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+        method: "post",
+        url: "https://api.pinata.cloud/pinning/pinJSONToIPFS",
         data: data,
         headers: {
           pinata_api_key: `${process.env.NEXT_PUBLIC_PINATA_API_KEY}`,
           pinata_secret_api_key: `${process.env.NEXT_PUBLIC_PINATA_API_SECRET}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
       let hash = resFile.data.IpfsHash;
@@ -63,7 +63,7 @@ function Create() {
       setMetaHash(hash);
       return submitEventToBlockChain(hash, metadata);
     } catch (error) {
-      return toast.error('Error occurred while uploading metadata');
+      return toast.error("Error occurred while uploading metadata");
     }
   };
   return (
