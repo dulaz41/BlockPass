@@ -1,29 +1,29 @@
-import { Box, Button, Text } from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import React, { useState } from 'react';
-import toast from 'react-hot-toast';
-import { getSignedContract } from '../../metamaskFunctions';
-import { useWeb3 } from '../../context/Web3Context';
-import { NETWORKS } from '../../config/networks';
+import { Box, Button, Text } from "@chakra-ui/react";
+import { ethers } from "ethers";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { getSignedContract } from "../../metamaskFunctions";
+import { useWeb3 } from "../../context/Web3Context";
+import { NETWORKS } from "../../config/networks";
 
 function BuyTicketButton({ id, price, chain }: any) {
   const [loading, setLoading] = useState(false);
   const { client, switchNetworks }: any = useWeb3();
   async function buyTicket() {
     if (!client)
-      return toast.error('Wallet not connected', { position: 'top-center' });
+      return toast.error("Wallet not connected", { position: "top-center" });
 
     setLoading(true);
 
     try {
-      let res = await getSignedContract(client.network)?.bookTickets(id, {
-        value: ethers.utils.parseEther('0.1'),
+      let res = await getSignedContract(client.network)?.purchasePass(id, {
+        value: ethers.utils.parseEther("0.1"),
       });
-      alert('Booked, check your NFT ticket in your wallet');
+      alert("Booked, check your NFT ticket in your wallet");
     } catch (error) {
       console.log(error);
 
-      toast.error('Error booking the ticket');
+      toast.error("Error booking the ticket");
     }
 
     setLoading(false);
@@ -56,11 +56,11 @@ function BuyTicketButton({ id, price, chain }: any) {
     <Box>
       <Button
         isLoading={loading}
-        bg='#f24726'
+        bg="#f24726"
         onClick={buyTicket}
-        colorScheme='orange'
-        color='white'
-        size='lg'
+        colorScheme="orange"
+        color="white"
+        size="lg"
         disabled={client.network !== chain}
       >
         Buy Ticket
@@ -75,8 +75,8 @@ function BuyTicketButton({ id, price, chain }: any) {
           to buy tickets for this event
           <br />
           <Button
-            my='3'
-            colorScheme='green'
+            my="3"
+            colorScheme="green"
             onClick={() => switchNetworks(chain)}
           >
             Switch
