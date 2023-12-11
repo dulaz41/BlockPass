@@ -1,9 +1,12 @@
-import axios from "axios";
-import { useState } from "react";
-import toast from "react-hot-toast";
-import CreateEventForm from "../components/CreateEvent/CreateEventForm";
-import { useWeb3 } from "../context/Web3Context";
-import { getSignedContract } from "../metamaskFunctions";
+import axios from 'axios';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import dotenv from 'dotenv';
+import CreateEventForm from '../components/CreateEvent/CreateEventForm';
+import { useWeb3 } from '../context/Web3Context';
+import { getSignedContract } from '../metamaskFunctions';
+
+dotenv.config();
 
 function Create() {
   const [metaHash, setMetaHash] = useState(false);
@@ -21,8 +24,9 @@ function Create() {
         hash,
         data.category
       );
-      toast.success("Event submitted to blockchain, transaction in progress");
-      return "Done";
+      await res.wait();
+      toast.success('Event submitted to blockchain, transaction in progress');
+      return 'Done';
     } catch (error) {
       console.log(error);
 

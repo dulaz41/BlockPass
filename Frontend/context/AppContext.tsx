@@ -47,7 +47,7 @@ export default function AppContextProvider({ children }: { children: any }) {
       );
       let network = FIND_NETWORK(network_chain.chainId); //chain id
       const ct = new ethers.Contract(network.ca, network.abi, provider);
-      let d = await ct.allEvents();
+      let d = await ct.allBlockPassList();
       return d;
     } catch (error) {
       console.log(error);

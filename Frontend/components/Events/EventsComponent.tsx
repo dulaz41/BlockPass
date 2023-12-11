@@ -21,22 +21,41 @@ const EventsComponent = ({ event }: { event: any }) => {
     chainId: '0',
   });
 
-  const eventId = BigNumber.from(event['eventId']).toNumber();
+  const eventId = BigNumber.from(event['blockPassId']).toNumber();
   const fetchMetadata = useCallback(async () => {
-    const url = 'https://gateway.pinata.cloud/ipfs/' + event['metadata'];
     try {
-      let { data } = await axios.get(url, {
+      const url = 'https://ipfs.io/ipfs/' + event['metadata'];
+      
+      // Using the fetch API
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          Accept: 'text/plain',
+          Accept: 'application/json',
         },
       });
-
+  
+      // Check if the request was successful (status code in the range 200-299)
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+  
+      // Parse the response JSON
+      const data = await response.json();
+  
+      // Update the state with the fetched data
       setData(data);
     } catch (error) {
-      console.log(error);
-      toast.error('error occurred');
+      console.error(error);
+  
+      // Handle different types of errors
+      if (error.message === 'Network request failed') {
+        toast.error('Error fetching metadata - network issue');
+      } else {
+        toast.error('Error fetching metadata');
+      }
     }
   }, [event]);
+
 
   useEffect(() => {
     fetchMetadata();
@@ -47,7 +66,7 @@ const EventsComponent = ({ event }: { event: any }) => {
       spacing='4'
       h='240px'
       textAlign={'center'}
-      key={BigNumber.from(event['eventId']).toNumber()}
+      key={BigNumber.from(event['blockPassId']).toNumber()}
       bgImg={data.image}
       bgPos='center'
       bgSize={'cover'}
