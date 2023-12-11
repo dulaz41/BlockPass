@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 pragma experimental ABIEncoderV2;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./PriceConverter.sol";
 
@@ -15,7 +15,11 @@ import "./PriceConverter.sol";
  * @title BlockPass
  * @dev The main smart contract for creating and managing block passes.
  */
-contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
+contract BlockPass is
+    ERC721URIStorage,
+    VRFV2WrapperConsumerBase,
+    ConfirmedOwner
+{
     using PriceConverter for uint256;
     using Counters for Counters.Counter;
     Counters.Counter private tokenId;
@@ -74,6 +78,14 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         uint256 blockPassId
     );
 
+    event RequestSent(uint256 requestId, uint32 numWords);
+
+    event RequestFulfilled(
+        uint256 requestId,
+        uint256[] randomWords,
+        uint256 payment
+    );
+
     // Constructor initializes the contract
     constructor(
         address _linkAddress,
@@ -81,6 +93,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         address priceFeedAddress
     )
         ERC721("Block Pass", "BP")
+        ConfirmedOwner(msg.sender)
         VRFV2WrapperConsumerBase(_linkAddress, _wrapperAddress)
     {
         tokenId.increment();
@@ -125,7 +138,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
      * @param _blockPassId The ID of the block pass to be purchased.
      */
     function purchaseLimitedEditionPass(uint256 _blockPassId) public payable {
-        uint256 requestId = requestRandomEventId();
+        uint256 requestId = requestRandomPassId();
         BlockPassDetails storage _pass = getPassById[_blockPassId];
 
         require(msg.value.getPriceConverter(s_priceFeed) >= _pass.passPrice);
@@ -216,24 +229,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         );
     }
 
-    /**
-     * @dev Allows an organizer to update the timing of a block pass.
-     * @param _blockPassId The ID of the block pass to be updated.
-     * @param _newStartTime The new start time for the block pass.
-     * @param _newSalesEndTime The new end time for sales of the block pass.
-     */
-    function updatePassTiming(
-        uint256 _blockPassId,
-        uint256 _newStartTime,
-        uint256 _newSalesEndTime
-    ) external {
-        // Update the timing of the specified block pass
-        BlockPassDetails storage _pass = getPassById[_blockPassId];
-        _pass.startTime = block.timestamp + _newStartTime;
-        _pass.salesEndTime = block.timestamp + _newSalesEndTime;
-    }
-
-    function requestRandomEventId() public returns (uint256 requestId) {
+    function requestRandomPassId() public returns (uint256 requestId) {
         requestId = requestRandomness(
             callbackGasLimit,
             requestConfirmations,
@@ -246,6 +242,7 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         );
         requestIds.push(requestId);
         lastRequestId = requestId;
+        emit RequestSent(requestId, numWords);
         return requestId;
     }
 
@@ -256,9 +253,11 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         require(requestStatuses[_requestId].paid > 0, "request not found");
         requestStatuses[_requestId].fulfilled = true;
         requestStatuses[_requestId].randomWords = _randomWords;
-        uint256 passId = uint256(keccak256(abi.encodePacked(_randomWords)));
-        BlockPassDetails memory _pass = getPassById[passId];
-        _pass.blockPassId = _randomWords[0] % 1000;
+        emit RequestFulfilled(
+            _requestId,
+            _randomWords,
+            requestStatuses[_requestId].paid
+        );
     }
 
     function getRequestStatus(
@@ -308,25 +307,6 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
     }
 
     /**
-     * @dev Retrieves the block passes created by a specific organizer.
-     * @param _organizer The address of the organizer.
-     * @return An array of block passes created by the organizer.
-     */
-    function organizerBlockPasses(
-        address _organizer
-    ) public view returns (BlockPassDetails[] memory) {
-        return bpCreatedByOrganizer[_organizer];
-    }
-
-    /**
-     * @dev Retrieves the total number of blockpasses in the contract.
-     * @return The total number of block passes.
-     */
-    function totalNumberOfBlockPassList() public view returns (uint256) {
-        return blockPassList.length;
-    }
-
-    /**
      * @dev Retrieves an array of all blockpasses in the contract.
      * @return An array of block passes.
      */
@@ -336,26 +316,6 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         returns (BlockPassDetails[] memory)
     {
         return blockPassList;
-    }
-
-    /**
-     * @dev Retrieves the number of passes sold for a specific block pass.
-     * @param _blockPassId The ID of the block pass.
-     * @return The number of passes sold for the block pass.
-     */
-    function passesSoldForBlockPass(
-        uint256 _blockPassId
-    ) public view returns (uint256) {
-        return getPassById[_blockPassId].passesSold;
-    }
-
-    /**
-     * @dev Checks if a specific block pass has ended.
-     * @param _blockPassId The ID of the block pass.
-     * @return A boolean indicating whether the block pass has ended.
-     */
-    function isBlockPassOver(uint256 _blockPassId) public view returns (bool) {
-        return getPassById[_blockPassId].bpEnded;
     }
 
     /**
@@ -386,82 +346,5 @@ contract BlockPass is Ownable, ERC721URIStorage, VRFV2WrapperConsumerBase {
         }
 
         return blockPassCategory;
-    }
-
-    /**
-     * @dev Allows an organizer to remove a block pass they created.
-     * @param _blockPassId The ID of the block pass to be removed.
-     */
-    function removeBlockPass(uint256 _blockPassId) external {
-        uint256 i = 0;
-        uint256 envIndex = 0;
-        BlockPassDetails storage _pass = getPassById[_blockPassId];
-        require(_pass.organizer == msg.sender, "Not Authorized");
-        require(_pass.passesSold == 0, "Passes already bought");
-
-        // Remove from bpCreatedByOrganizer array
-        for (; i < bpCreatedByOrganizer[msg.sender].length - 1; i++) {
-            BlockPassDetails memory _aPass = bpCreatedByOrganizer[msg.sender][
-                i
-            ];
-            if (_aPass.blockPassId == _blockPassId) {
-                break;
-            }
-        }
-        for (
-            uint256 index = i;
-            index < bpCreatedByOrganizer[msg.sender].length - 1;
-            index++
-        ) {
-            bpCreatedByOrganizer[msg.sender][index] = bpCreatedByOrganizer[
-                msg.sender
-            ][index + 1];
-        }
-        bpCreatedByOrganizer[msg.sender].pop();
-
-        // Remove from general blockPassList array
-        for (; envIndex < blockPassList.length - 1; envIndex++) {
-            BlockPassDetails memory _anotherEv = blockPassList[envIndex];
-            if (_anotherEv.blockPassId == _blockPassId) {
-                break;
-            }
-        }
-
-        for (
-            uint256 index = envIndex;
-            index < blockPassList.length - 1;
-            index++
-        ) {
-            blockPassList[index] = blockPassList[index + 1];
-        }
-        blockPassList.pop();
-
-        // Remove from getPassById mapping
-        delete getPassById[_blockPassId];
-    }
-
-    /**
-     * @dev Allows the contract owner to remove a block pass.
-     * @param _blockPassId The ID of the block pass to be removed.
-     */
-    function removeBlockPassAdmin(uint256 _blockPassId) external onlyOwner {
-        uint256 envIndex = 0;
-        // Remove from general blockPassList array
-
-        for (; envIndex < blockPassList.length - 1; envIndex++) {
-            BlockPassDetails memory _pass = blockPassList[envIndex];
-            if (_pass.blockPassId == _blockPassId) {
-                break;
-            }
-        }
-
-        for (
-            uint256 index = envIndex;
-            index < blockPassList.length - 1;
-            index++
-        ) {
-            blockPassList[index] = blockPassList[index + 1];
-        }
-        blockPassList.pop();
     }
 }
