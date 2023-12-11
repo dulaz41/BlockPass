@@ -30,9 +30,9 @@ function BuyTicketButton({ id, price, chain }: any) {
   }
 
   function WHICH_NETWORK() {
-    return client.network === NETWORKS.fil_testnet.chainId ? (
-      <b>Filecoin </b>
-    ) : client.network === NETWORKS.ftm_testnet.chainId ? (
+    return client.network === NETWORKS.fuji_testnet.chainId ? (
+      <b>Avalanche </b>
+    ) : client.network === NETWORKS.polygon_mumbai.chainId ? (
       <b>Fantom </b>
     ) : (
       <b>Mumbai </b>
